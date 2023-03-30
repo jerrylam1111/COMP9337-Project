@@ -2,6 +2,7 @@ import sys
 import secrets
 import time
 import socket
+import random
 from Crypto.Protocol.SecretSharing import Shamir
 from Crypto.Random import get_random_bytes
 
@@ -24,14 +25,18 @@ while True:
     k = 3
     n = 5
     shares = generate_shares(ephid, n, k)
-
+    randomNo = random.random()
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
     #sock.bind(listeningADDR)
     shares_value = str()
+
     for share in shares:
         shares_value += str(share) + " "
-    sock.sendto(shares_value.encode(), (listeningADDR))
-    sock.close()
-    time.sleep(3)
+    
+    if randomNo < 0.5:
+        print(randomNo)
+        sock.sendto(shares_value.encode(), (listeningADDR))
+        sock.close()
 
+    time.sleep(3)
