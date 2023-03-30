@@ -2,33 +2,36 @@ import sys
 import secrets
 import time
 import socket
-import Crypto.Protocol.SecretSharing as Shamir
+from Crypto.Protocol.SecretSharing import Shamir
+from Crypto.Random import get_random_bytes
 
 def generate_ephid():
-    return secrets.token_hex(32)
+    return get_random_bytes(16)
 
-def gernerate_shares(ephid, n, k):
-    return Shamir.split(k,n,ephid)
-
-k = 3
-n = 5
-
-
+def generate_shares(ephid, n, k):
+    shares = Shamir.split(k,n,ephid)
+    return shares
 
 while True:
     BROADCAST_IP = "0.0.0.0"
-    UDP_PORT = 5000
+    UDP_PORT = 9999
     listeningADDR = (BROADCAST_IP, UDP_PORT)
 
     ephid = generate_ephid()
-    print("Ephemeral ID: " + ephid)
+    print("Ephemeral ID: " + str(ephid))
     time.sleep(1)
+
+    k = 3
+    n = 5
+    shares = generate_shares(ephid, n, k)
 
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
     sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
-    sock.bind(listeningADDR)
-
-    sock.sendto(ephid, (listeningADDR))
+    #sock.bind(listeningADDR)
+    shares_value = str()
+    for share in shares:
+        shares_value += str(share) + " "
+    sock.sendto(shares_value.encode(), (listeningADDR))
     sock.close()
     time.sleep(3)
 
