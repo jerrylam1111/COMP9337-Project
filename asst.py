@@ -1,6 +1,7 @@
 import sys
 import secrets
 import time
+import socket
 import Crypto.Protocol.SecretSharing as Shamir
 
 def generate_ephid():
