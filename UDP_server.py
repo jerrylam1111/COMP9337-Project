@@ -1,7 +1,7 @@
 import socket
 
 UDP_IP = "0.0.0.0"
-UDP_PORT = 9999
+UDP_PORT = 5000
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
 sock.bind((UDP_IP, UDP_PORT))  # Bind the socket to the specified IP and port
