@@ -37,26 +37,24 @@ while True:
     listeningADDR = (BROADCAST_IP, UDP_PORT)
 
     ephid = generate_ephid(public_key)
-    print(ephid)
-    time.sleep(15)
+    #print(ephid)
 
-    k = 3
-    n = 5
-    shares = generate_shares(ephid, n, k)
-    print(shares)
-    randomNo = random.random()
-    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
-    #sock.bind(listeningADDR)  
-    shares_value = str()
-    hashed = hash_message_md5(str(shares_value))
-
-    for share in shares:
-        shares_value += str(share) + " "
-    
-    if randomNo < 0.5:
-        sock.sendto(shares_value.encode(), (listeningADDR))
+    for i in range(5):
+        k = 3
+        n = 5
+        shares = generate_shares(ephid, k, n)
+        #print(shares)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
+        #sock.bind(listeningADDR)  
+        #shares = str(shares)
+        hashed = hash_message_md5(message=str(shares))
+        
         sock.sendto(hashed.encode(), (listeningADDR))
-        sock.close()
-
-    time.sleep(3)
+        for i in shares:
+            randomNo = random.random()
+            if randomNo < 0.5:
+                print(randomNo)
+                sock.sendto(str(i[:]).encode(), (listeningADDR))
+            time.sleep(3)
+    time.sleep(6)

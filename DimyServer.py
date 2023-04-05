@@ -18,7 +18,14 @@ sock.bind((UDP_IP, UDP_PORT))  # Bind the socket to the specified IP and port
 
 
 print("Listening for UDP packets on {}:{}".format(UDP_IP, UDP_PORT))
-
+hash_list = []
 while True:
     data, addr = sock.recvfrom(1024)  # Receive up to 1024 bytes from the client
-    print(data.decode())
+    data = data.decode()
+    print(data)
+    if data.startswith('('):
+        hash_list.append(data.decode())
+    else:
+        ID = data
+    if len(hash_list) >= 3:
+        reconstruct()
