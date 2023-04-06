@@ -55,6 +55,6 @@ while True:
             randomNo = random.random()
             if randomNo < 0.5:
                 print(randomNo)
-                sock.sendto(str(i[:]).encode(), (listeningADDR))
+                sock.sendto(i[:], (listeningADDR))
             time.sleep(3)
     time.sleep(6)
