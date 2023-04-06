@@ -32,8 +32,10 @@ while True:
         #reconstruct()
 
         hash_list = str(hash_list)
+        print(hash_list)
         # print(hash_list)
-        hash_list = re.sub("\"([0-9]", "([0-9]", hash_list)
+        # hash_list = re.sub("\"([0-9]", "([0-9]", hash_list)
+        hash_list = re.sub("\"", "", hash_list,flags=1)
         # hash_list = hash_list.replace('"([0-9]', '([0-9]')
         # hash_list = hash_list.replace('b\'', '')
         # hash_list = hash_list.replace('\'', '')
