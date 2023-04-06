@@ -51,10 +51,11 @@ while True:
         hashed = hash_message_md5(message=str(shares))
         
         sock.sendto(hashed.encode(), (listeningADDR))
+        print(shares)
         for i in shares:
             randomNo = random.random()
             if randomNo < 0.5:
                 print(randomNo)
-                sock.sendto(i[:], (listeningADDR))
+                sock.sendto(str(i[:]).encode(), (listeningADDR))
             time.sleep(3)
     time.sleep(6)

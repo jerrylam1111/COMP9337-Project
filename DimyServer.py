@@ -1,5 +1,6 @@
 import socket
 import hashlib
+import re
 from Crypto.Protocol.SecretSharing import Shamir
 
 UDP_IP = "0.0.0.0"
@@ -20,13 +21,21 @@ hash_list = []
 while True:
     data, addr = sock.recvfrom(1024)  # Receive up to 1024 bytes from the client
     data = data.decode()
-    data[1]=""
-    data[-2]=""
-    print(data)
+    # data[1]=""
+    # data[-2]=""
+    # print(data)
     if data.startswith('('):
         hash_list.append(data)
     else:
         ID = data
     if len(hash_list) >= 3:
         #reconstruct()
-        Shamir.combine()
+
+        hash_list = str(hash_list)
+        # print(hash_list)
+        hash_list = re.sub("\"([0-9]", "([0-9]", hash_list)
+        # hash_list = hash_list.replace('"([0-9]', '([0-9]')
+        # hash_list = hash_list.replace('b\'', '')
+        # hash_list = hash_list.replace('\'', '')
+        print(hash_list)
+        Shamir.combine(hash_list)
