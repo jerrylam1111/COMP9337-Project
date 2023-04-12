@@ -18,26 +18,31 @@ sock.bind((UDP_IP, UDP_PORT))  # Bind the socket to the specified IP and port
 
 print("Listening for UDP packets on {}:{}".format(UDP_IP, UDP_PORT))
 hash_list = []
+current_flag = 0
 while True:
     data, addr = sock.recvfrom(1024)  # Receive up to 1024 bytes from the client
-    data = data.decode()
+    flag = int(chr(int(str(data[0]))))
+    data = (int(chr(int(str(data[1])))), data[2:])
     # data[1]=""
     # data[-2]=""
-    # print(data)
-    if data.startswith('('):
+    print(data)
+    if flag > current_flag:
+        hash_list = [data]
+        current_flag = flag
+    elif flag == current_flag:
         hash_list.append(data)
-    else:
-        ID = data
-    if len(hash_list) >= 3:
+    #hash_list.append(data)
+    if len(hash_list) == 3:
         #reconstruct()
 
-        hash_list = str(hash_list)
-        print(hash_list)
+        # hash_list = str(hash_list)
+        # print(hash_list)
         # print(hash_list)
         # hash_list = re.sub("\"([0-9]", "([0-9]", hash_list)
-        hash_list = re.sub("\"", "", hash_list,flags=1)
+        #hash_list = re.sub("\"", "", hash_list,flags=1)
         # hash_list = hash_list.replace('"([0-9]', '([0-9]')
         # hash_list = hash_list.replace('b\'', '')
         # hash_list = hash_list.replace('\'', '')
         print(hash_list)
-        Shamir.combine(hash_list)
+        combined_id = Shamir.combine(hash_list)
+        print(f"Combined = {combined_id}")
