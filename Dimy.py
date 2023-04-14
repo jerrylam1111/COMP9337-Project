@@ -31,35 +31,32 @@ def hash_message_md5(message):
     # Return the hexadecimal representation of the hashed message
     return md5_hasher.hexdigest()
 
+flag = 0
 while True:
     BROADCAST_IP = "0.0.0.0"
     UDP_PORT = 9999
     listeningADDR = (BROADCAST_IP, UDP_PORT)
 
     ephid = generate_ephid(public_key)
-    #print(ephid)
+    print(f"ID={ephid}")
 
-    flag = 0
-    for i in range(5):
-        print(ephid)
-        flag += 1
-        k = 3
-        n = 5
-        shares = generate_shares(ephid, k, n)
-        #print(shares)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
-        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
-        #sock.bind(listeningADDR)  
-        #shares = str(shares)
-        hashed = hash_message_md5(message=str(shares))
-        
-        sock.sendto(hashed.encode(), (listeningADDR))
-        print(shares)
-        for i in shares:
-            randomNo = random.random()
-            if randomNo < 0.5:
-                print(randomNo)
-                sock.sendto(str(i[:]).encode(), (listeningADDR))
-                sock.sendto(str(flag).encode(), (listeningADDR))
-            time.sleep(3)
-    time.sleep(6)
+    #for i in range(5):
+    k = 3
+    n = 5
+    shares = generate_shares(ephid, k, n)
+    #print(shares)
+    sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
+    #sock.bind(listeningADDR)  
+    #shares = str(shares)
+    hashed = hash_message_md5(message=str(shares))
+    
+    #sock.sendto(hashed.encode(), (listeningADDR))
+    print(shares)
+    for i in shares:
+        randomNo = random.random()
+        if randomNo < 0.5:
+            sock.sendto(str(flag).encode() + str(i[0]).encode() + i[1], (listeningADDR))
+        time.sleep(3)
+    flag += 1
+    
