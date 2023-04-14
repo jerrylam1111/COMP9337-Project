@@ -4,59 +4,93 @@ import time
 import socket
 import random
 import hashlib
-from Crypto.Protocol.SecretSharing import Shamir
+#from Crypto.Protocol.SecretSharing import Shamir
+import subrosa
 from Crypto.Random import get_random_bytes
+import threading
 
-public_key = b"""
------BEGIN PUBLIC KEY-----
-MFkwEwYHKoZIzj0CAQYIKoZIzj0DAQcDQgAE1Oi1vEfh9qdKQ2oPRIdy0Yb98I5F
-a3e5ao5Z5z5jRvVVX9C5Ev4dd4y4PVtJtnwR1DpafA5rLlb07oZPQvJ7ZA==
------END PUBLIC KEY-----
-"""
 
-def generate_ephid(public_key):
-    hash_object = hashlib.sha256(public_key)
-    ephid = hash_object.digest().hex()
-    return ephid[:16]
+def generate_ephid():
+    ephid = ''.join(random.choices("0123456789abcdef", k=32))
+    return ephid
 
 def generate_shares(ephid, k, n):
-    shares = Shamir.split(k,n,ephid.encode())
+    shares = split_secret(ephid.encode(), k, n)
+    print(shares)
     return shares
 
-def hash_message_md5(message):
-    # Create an MD5 hash object
-    md5_hasher = hashlib.md5()
-    # Encode the message as bytes and update the hash object with the message
-    md5_hasher.update(message.encode('utf-8'))
-    # Return the hexadecimal representation of the hashed message
-    return md5_hasher.hexdigest()
+def send_broadcast():
+    flag = 0
+    while True:
+        time.sleep(1)
+        BROADCAST_IP = "0.0.0.0"
+        UDP_PORT = 9999
+        listeningADDR = (BROADCAST_IP, UDP_PORT)
 
-flag = 0
-while True:
-    BROADCAST_IP = "0.0.0.0"
+        ephid = generate_ephid()
+        print(f"ID={ephid}")
+
+        #for i in range(5):
+        k = 3
+        n = 5
+        shares = generate_shares(ephid, k, n)
+        #print(shares)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
+        sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+        
+        #sock.sendto(hashed.encode(), (listeningADDR))
+        for i in shares:
+            randomNo = random.random()
+            if randomNo < 0.5:
+                print(i)
+                sock.sendto(str(flag).encode() + str(i).encode(), (listeningADDR))
+            time.sleep(3)
+        flag += 1
+        
+def split_secret(secret, k=3, n=5):
+    shares = subrosa.split_secret(secret, k, n)
+    return shares
+
+def recover_secret(shares):
+    recovered_message = subrosa.recover_secret(shares)
+    return recovered_message
+
+def receive_broadcast():
+
+    UDP_IP = "0.0.0.0"
     UDP_PORT = 9999
-    listeningADDR = (BROADCAST_IP, UDP_PORT)
-
-    ephid = generate_ephid(public_key)
-    print(f"ID={ephid}")
-
-    #for i in range(5):
-    k = 3
-    n = 5
-    shares = generate_shares(ephid, k, n)
-    #print(shares)
     sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)  # Create a UDP socket
-    sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)  # Enable broadcasting
-    #sock.bind(listeningADDR)  
-    #shares = str(shares)
-    hashed = hash_message_md5(message=str(shares))
-    
-    #sock.sendto(hashed.encode(), (listeningADDR))
-    print(shares)
-    for i in shares:
-        randomNo = random.random()
-        if randomNo < 0.5:
-            sock.sendto(str(flag).encode() + str(i[0]).encode() + i[1], (listeningADDR))
-        time.sleep(3)
-    flag += 1
-    
+    sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    sock.bind((UDP_IP, UDP_PORT))  # Bind the socket to the specified IP and port
+
+    print("Listening for UDP packets on {}:{}".format(UDP_IP, UDP_PORT))
+    hash_list = []
+    current_flag = 0
+    while True:
+        data, addr = sock.recvfrom(1024)  # Receive up to 1024 bytes from the client
+        flag = int(chr(int(str(data[0]))))
+        # data = (int(chr(int(str(data[1])))), data[2:])
+        # data[1]=""
+        # data[-2]=""
+        if flag > current_flag:
+            hash_list = [data]
+            current_flag = flag
+        elif flag == current_flag:
+
+            hash_list.append(data)
+        #hash_list.append(data)
+        if len(hash_list) == 3:
+            print(hash_list)
+            combined_id = recover_secret(hash_list)
+            print(f"Combined = {combined_id}")
+            
+
+send_thread = threading.Thread(target=send_broadcast)
+receive_thread = threading.Thread(target=receive_broadcast)
+
+send_thread.start()
+receive_thread.start()
+
+#send_thread.join()
+#receive_thread.join()
