@@ -39,7 +39,10 @@ while True:
     ephid = generate_ephid(public_key)
     #print(ephid)
 
+    flag = 0
     for i in range(5):
+        print(ephid)
+        flag += 1
         k = 3
         n = 5
         shares = generate_shares(ephid, k, n)
@@ -57,5 +60,6 @@ while True:
             if randomNo < 0.5:
                 print(randomNo)
                 sock.sendto(str(i[:]).encode(), (listeningADDR))
+                sock.sendto(str(flag).encode(), (listeningADDR))
             time.sleep(3)
     time.sleep(6)
