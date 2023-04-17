@@ -1,0 +1,16 @@
+*************Assignment Diary*************
+Jerry = J; Keith = K;
+27/3 Week 1: 
+J && K -->  Go through the assignment spec
+            Finish task 1 - 4 by the end of the week
+
+4/3 Week 2:
+J -->       Work on the python threading and UDP broadcasting
+K -->       Work on the k-out-of-n secret reconstruction and UDP recevie
+J && K -->  Finish task 5 - 9 by the end of the week 
+
+
+10/3 Week 3:
+J -->       Work on the attacker.py, make the video
+K -->       Work on the Filters and matching
+J && K -->  Finish the remaining tasks by the end of the week; writing the report
