@@ -101,13 +101,13 @@ try:
 except socket.error as e:
     print(str(e))
 
+serverSoc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+serverSoc.setsockopt(socket.SOL_SOCKET, socket.SO_USEPORT, 1)
+
 try:
     serverSoc.bind((myIP, server_port))
 except OSError as e:
     catch(f"Port {server_port} is already in use")
-
-serverSoc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-serverSoc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
 threads = []
 
