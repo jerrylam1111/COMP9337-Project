@@ -1,3 +1,6 @@
+from binascii import hexlify
+from secrets import token_bytes, randbits
+from random import random, randint
 import sys
 import time
 import socket
@@ -5,17 +8,14 @@ import threading
 import hashlib
 import os.path
 import numpy as np
+from collections import defaultdict
+from binascii import unhexlify
 from datetime import datetime
 from Crypto.PublicKey import ECC
-from random import random, randint
-from BloomFilter import BloomFilter
-from collections import defaultdict
-from binascii import hexlify, unhexlify
-from secrets import token_bytes, randbits
 from pycryptodome.lib.Crypto.Protocol.SecretSharing import Shamir
+from BloomFilter import BloomFilter
 
 np.set_printoptions(threshold=6)
-
 def catch(msg):
     print("Exception caught: " + msg)
     if peerSoc:
@@ -29,7 +29,7 @@ if len(sys.argv) != 3:
     sys.exit(1)
 
 cycle_time = 15
-COVID_chance = 500000
+COVID_chance = 200000
 COVID_rng = randint(1, COVID_chance)
 k_out_of_n_k = 3
 k_out_of_n_n = 5
@@ -47,6 +47,9 @@ common_point_dir = '.'
 common_point_name = 'common_point.pem'
 common_point_path = os.path.join(common_point_dir, common_point_name)
 public_key_dir = 'public_keys'
+attack_flag = 0
+attacked_list = []
+
 if not os.path.exists(public_key_dir):
     print("Creating public keys dir...")
     os.mkdir(public_key_dir)
@@ -85,20 +88,15 @@ except socket.error as e:
 
 def task_1_gen_id():
     #return token_bytes(32)
-    print("Task 1", end="")
     return randbits(256)
 
 def task_2_prepare_n_chunks(my_eph_id):
-    print()
-    print("Task 2")
     shares = Shamir.split(k_out_of_n_k, k_out_of_n_n, my_eph_id)
     for idx, share in shares:
-        print("Index #%d: %s" % (idx, hexlify(share)[:6]))
+        print("Index #%d: %s" % (idx, hexlify(share[:6])))
     return shares    
 
 def task_3_broadcast(shares, my_eph_id_hash_no):
-    print()
-    print("Task 3", end="")
     global sent_data
     global broadcast_timer
     for share in shares:
@@ -112,16 +110,14 @@ def task_3_broadcast(shares, my_eph_id_hash_no):
         broadcast_timer = time.time()
     
 def task_4_reconstruct(serial, shares_dict):
-    print("Task 4A")
-    print(f"hash {serial} has {k_out_of_n_k} shares!")
-    print("reconstructing...")
+    print()
+    print(f"{serial} has {k_out_of_n_k} shares! reconstructing...")
     key = Shamir.combine(shares_dict[serial])
     print(f"The original my_eph_id is {str(hexlify(key)[:6])}")
     print()
     return key
 
 def task_4_verify(origin_eph_id, serial):
-    print("Task 4B")
     origin_eph_id_hash = hashlib.sha256(origin_eph_id)
     origin_eph_id_hash_no = origin_eph_id_hash.hexdigest()[:sha_digest_len]
     if origin_eph_id_hash_no == serial:
@@ -132,7 +128,6 @@ def task_4_verify(origin_eph_id, serial):
         return False
 
 def task_5_diffie_hellman(serial):
-    print("Task 5")
     public_key_file = str(serial.decode()) + '.pem'
     public_key_path = os.path.join(public_key_dir, public_key_file)
     with open(public_key_path, 'rb') as f:
@@ -145,7 +140,6 @@ def task_5_diffie_hellman(serial):
     return encounter_id
 
 def task_6_encode_encid(enc_id):
-    print("Task 6")
     global DBF_bloom
     global DBF_bloom_counter
     print("Bloom filter before: ", end = "")
@@ -157,21 +151,19 @@ def task_6_encode_encid(enc_id):
     return enc_id
 
 def task_7_store_DBF():
-    
     global DBF_bloom
     global DBF_bloom_list
     global DBF_bloom_counter
     global QBF_bloom_counter
     if DBF_bloom_counter == 6:
-        print()
-        print("Task 7")
         if len(DBF_bloom_list) == 6:
             DBF_bloom_list.pop(0)
         DBF_bloom_list.append(DBF_bloom)
         DBF_bloom = BloomFilter(bloom_m, bloom_k)
         DBF_bloom_counter = 0
         QBF_bloom_counter += 1
-        print("DBF bloom list: ")
+        print()
+        print("DBF bloom list: ", end='')
         print(DBF_bloom_list)
 
 def upload_bloom_filter(bloom_filter_bit_array):
@@ -185,12 +177,10 @@ def task_8_gen_QBF():
     global QBF_bloom_counter
     
     if QBF_bloom_counter == 6:
-        print()
-        print("Task 8")
         for temp_DBF_bloom in DBF_bloom_list:
             QBF_bloom_bit_array = QBF_bloom.bit_array | temp_DBF_bloom.bit_array
             QBF_bloom.set(QBF_bloom_bit_array)
-        print("\nUpdated QBF Bloom: ", end='')
+        print("Updated QBF Bloom: ", end='')
         print(np.array(QBF_bloom.seek()))
         QBF_bloom_list.append(QBF_bloom)
         QBF_bloom = BloomFilter(bloom_m, bloom_k)
@@ -199,11 +189,9 @@ def task_8_gen_QBF():
         upload_bloom_filter(QBF_bloom_bit_array)
         print()
         print(clientSoc.recv(1024).decode())
+
         
-        
-def task_9_gen_CBF():
-    print()
-    print("Task 9")
+def gen_CBF():
     global DBF_bloom_list
     global CBF_bloom
     CBF_bloom = BloomFilter(bloom_m, bloom_k)
@@ -221,13 +209,15 @@ def recv():
     global DBF_bloom
     global DBF_bloom_list
     global QBF_bloom
+    global attack_flag
+    global sent_data
     while True:
         data, addr = peerSoc.recvfrom(1024)
         serial = data[:sha_digest_len]
         index = data[sha_digest_len:sha_digest_len + 1]
         index = int.from_bytes(index, "big")
         data = data[sha_digest_len + 1:]
-        if data != sent_data:
+        if data != sent_data and not attack_flag:
             shares_dict[serial].append((index, data))
             print()
             print("Received share " + str(index))
@@ -243,6 +233,17 @@ def recv():
                 enc_id = task_5_diffie_hellman(serial)
                 enc_id = task_6_encode_encid(enc_id)
 
+        if attack_flag and serial not in attacked_list:
+            bogus_data = b'\xf0\x01' * 16
+            sent_data = bogus_data
+            bogus_eph_id_hash_no = serial
+            bogus_index = 6
+            print(f"sent forged share {bogus_index}: {bogus_data[:6]} targeting {bogus_eph_id_hash_no}\n")
+            bogus_index = bogus_index.to_bytes(1, byteorder='big')
+            peerSoc.sendto(bogus_eph_id_hash_no + bogus_index + bogus_data, bc_addr)
+            attacked_list.append(serial)
+
+            
 
 
 def send():
@@ -260,8 +261,8 @@ def send():
         while datetime.now().second % cycle_time  != 0:
             pass
     
-        #if not broadcast_timer:
-        broadcast_timer = time.time()
+        if not broadcast_timer:
+            broadcast_timer = time.time()
         my_private_key = task_1_gen_id()
         public_key = (my_private_key * point_g)
         my_eph_id = public_key.x.to_bytes(32, "big")
@@ -283,10 +284,10 @@ def send():
         if (randint(1, COVID_chance) != COVID_rng and not have_COVID) or not DBF_bloom_list:
             task_8_gen_QBF()
         elif not have_COVID:
-                task_9_gen_CBF()
+                gen_CBF()
                 have_COVID = True
         elif QBF_bloom_counter == 6 and have_COVID:
-            print("\nQBF not generated.\n")
+            print("QBF not generated.")
             QBF_bloom_counter = 0
         if os.path.isfile(public_key_path):
             os.remove(public_key_path)
@@ -303,8 +304,13 @@ except socket.error as e:
     catch(str(e))
 
 print("Initialising...")
+sim_start = time.time()
 t1 = threading.Thread(target=recv)
 t2 = threading.Thread(target=send)
 t1.start()
 t2.start()
-
+while time.time() - sim_start < 11 * 60:
+    pass
+print("Task 11")
+print("Attack started...\n")
+attack_flag = 1

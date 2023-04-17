@@ -1,4 +1,2 @@
-### COMP4337/9337 Securing Wired and Wireless Networks
-## Assignment Project
-
-Author: Keith Kong, Jerry Lam
+# COMP9337-project
+Did I Meet You?
