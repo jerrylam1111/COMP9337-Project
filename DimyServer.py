@@ -107,11 +107,11 @@ except OSError as e:
     catch(f"Port {server_port} is already in use")
 
 serverSoc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+serverSoc.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEPORT, 1)
 
 threads = []
 
 while True:
-<<<<<<< HEAD
     try:
         serverSoc.listen(5)
         conn, addr = serverSoc.accept()
@@ -135,19 +135,3 @@ while True:
     #except socket.error as e:
     #   print(str(e))
 
-=======
-    data, addr = sock.recvfrom(1024)  # Receive up to 1024 bytes from the client
-    print(data)
-
-        # hash_list = str(hash_list)
-        # print(hash_list)
-        # print(hash_list)
-        # hash_list = re.sub("\"([0-9]", "([0-9]", hash_list)
-        #hash_list = re.sub("\"", "", hash_list,flags=1)
-        # hash_list = hash_list.replace('"([0-9]', '([0-9]')
-        # hash_list = hash_list.replace('b\'', '')
-        # hash_list = hash_list.replace('\'', '')
-        print(hash_list)
-        combined_id = Shamir.combine(hash_list)
-        print(f"Combined = {combined_id}")
->>>>>>> 7662bd84ca490f27afe0176e5dc966af6c0d8f5b
