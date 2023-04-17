@@ -1,0 +1,183 @@
+name: Wheels
+
+on:
+  push:
+    tags:
+    - '*'
+
+jobs:
+  build_source:
+    name: Build source package
+    runs-on: [ ubuntu-latest ]
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: actions/setup-python@v4
+        name: Install Python
+        with:
+          python-version: '3.x'
+
+      - name: Build source package (.tar.gz)
+        run: python setup.py sdist
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: source
+          path: ./dist/*.tar.gz
+
+  build_python3_wheels:
+    name: Build Python 3 wheels on ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-latest, macos-10.15]
+
+    if: github.actor == 'Legrandin'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Select architecture for MacOS
+        run: |
+          echo 'CIBW_ARCHS=x86_64 universal2' >> $GITHUB_ENV
+        if: runner.os == 'macOS'
+
+      - uses: pypa/cibuildwheel@v2.11.2
+        name: Build wheels
+        env:
+          # cibuildwheel will build wheel once and test it for each CPython version
+          # and for PyPy > 3.7.
+          CIBW_BUILD: "cp36-* cp37-* cp38-* cp39-* cp310-* cp311-* pp38-* pp39-*"
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2014"
+          CIBW_MANYLINUX_I686_IMAGE: "manylinux2014"
+          CIBW_MANYLINUX_PYPY_X86_64_IMAGE: "manylinux2014"
+          CIBW_MANYLINUX_PYPY_I686_IMAGE: "manylinux2014"
+          CIBW_BEFORE_TEST_LINUX: "(ldd /bin/ls | grep -q musl && apk add gmp) || true"
+
+          # Set pycryptodome/x test command according to built package
+          CIBW_TEST_COMMAND:
+            "${{ endsWith(github.ref, 'x') == true &&
+            'python -m Cryptodome.SelfTest --skip-slow-tests' ||
+            'python -m Crypto.SelfTest --skip-slow-tests' }}"
+
+      - name: Delete manylinux1 wheels
+        if: runner.os == 'Linux'
+        run: |
+          rm -f wheelhouse/*-manylinux1_i686.whl
+          rm -f wheelhouse/*-manylinux1_x86_64.whl
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: ./wheelhouse/*.whl
+
+  # Test ABI3 wheels on Python 3 versions no longer supported by cibuildwheel
+  # and/or by manylinux2014
+  test_abi3_wheels_old_python:
+    name: Test (legacy) Python 3 wheels on ${{ matrix.os }}
+    needs: build_python3_wheels
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-20.04, windows-latest, macos-10.15]
+        python-version: ['3.5']
+
+    if: github.actor == 'Legrandin'
+
+    steps:
+      - name: Set up Python ${{ matrix.python-version }}
+        uses: actions/setup-python@v4
+        with:
+          python-version: ${{ matrix.python-version }}
+
+      - uses: actions/download-artifact@v3
+        with:
+          name: wheels
+          path: wheels/
+
+      - name: Install GMP on musllinux
+        if: runner.os == 'Linux'
+        run: |
+          (ldd /bin/ls | grep -q musl && apk add gmp) || true
+
+      - name: Install and test pycryptodome wheel
+        if: endsWith(github.ref, 'x') == false
+        run: |
+          pip install pycryptodome --no-index -f wheels/
+          python -m Crypto.SelfTest --skip-slow-tests
+
+      - name: Install pycryptodomex wheel
+        if: endsWith(github.ref, 'x') == true
+        run: |
+          pip install pycryptodomex --no-index -f wheels/
+          python -m Cryptodome.SelfTest --skip-slow-tests
+
+  build_legacy_wheels:
+    name: Build legacy Python wheels on ${{ matrix.os }} (${{ matrix.arch }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ ubuntu-20.04, windows-latest, macos-10.15 ]
+        arch: [ multi-arch ]
+        # Python 2 on Windows requires manual toolchain setup (per-arch) due to newer MSVC used here
+        exclude:
+          - os: windows-latest
+            arch: multi-arch
+        include:
+          - os: windows-latest
+            arch: x86
+          - os: windows-latest
+            arch: x64
+
+    if: github.actor == 'Legrandin'
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Install MSVC
+        if: runner.os == 'Windows'
+        uses: ilammy/msvc-dev-cmd@v1
+        with:
+          toolset: 14.0
+          arch: ${{ matrix.arch }}
+
+      - name: Set Windows build environment variables
+        if: runner.os == 'Windows'
+        run: |
+          echo "DISTUTILS_USE_SDK=1" >> $env:GITHUB_ENV
+          echo "MSSdk=1" >> $env:GITHUB_ENV
+
+          if ( '${{ matrix.arch }}' -eq 'x86' )
+          {
+            echo "CIBW_ARCHS=x86" >> $env:GITHUB_ENV
+          }
+          else
+          {
+            echo "CIBW_ARCHS=AMD64" >> $env:GITHUB_ENV
+          }
+
+      - uses: pypa/cibuildwheel@v1.12.0
+        name: Build wheels
+        env:
+          CIBW_BUILD: "cp27-* pp27-*"
+          CIBW_MANYLINUX_X86_64_IMAGE: "manylinux2010"
+          CIBW_MANYLINUX_I686_IMAGE: "manylinux2010"
+          CIBW_MANYLINUX_PYPY_X86_64_IMAGE: "manylinux2010"
+          CIBW_MANYLINUX_PYPY_I686_IMAGE: "manylinux2010"
+
+          # Set pycryptodome/x test command according to built package
+          CIBW_TEST_COMMAND:
+            "${{ endsWith(github.ref, 'x') == true &&
+            'python -m Cryptodome.SelfTest --skip-slow-tests' ||
+            'python -m Crypto.SelfTest --skip-slow-tests' }}"
+
+      - name: Delete manylinux1 wheels
+        if: runner.os == 'Linux'
+        run: |
+          rm -f wheelhouse/*-manylinux1_i686.whl
+          rm -f wheelhouse/*-manylinux1_x86_64.whl
+
+      - uses: actions/upload-artifact@v3
+        with:
+          name: wheels
+          path: ./wheelhouse/*.whl
